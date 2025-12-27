@@ -1,0 +1,10 @@
+__pycache__
+app/services/data
+app/tmp
+letsencrypt
+bkp
+.env
+deploy_log.txt
+.idea/
+.acme/
+.DS_Store

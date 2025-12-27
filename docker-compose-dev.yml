@@ -1,0 +1,39 @@
+name: personal-server
+
+services:
+  server:
+    container_name: server
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - "8081:80"
+      - "5678:5678"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - db
+  db:
+    container_name: postgres
+    image: postgres
+    restart: always
+    shm_size: 128mb
+    ports:
+      - 5432:5432
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  adminer:
+    container_name: adminer
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  postgres_data:
