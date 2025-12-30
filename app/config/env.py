@@ -9,4 +9,6 @@ def get_env(var_name: str, default=None, required: bool = False):
     return value
 
 
-DATABASE_URL = get_env("DATABASE_URL", "sqlite:///db.sqlite3")
+POSTGRES_PASSWORD = get_env("POSTGRES_PASSWORD", "PASSWORD")
+POSTGRES_USER = get_env("POSTGRES_USER", "USER")
+DATABASE_URL = get_env("DATABASE_URL", f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@db:5432/APP")
