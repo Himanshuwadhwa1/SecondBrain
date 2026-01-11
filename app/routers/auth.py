@@ -1,10 +1,10 @@
-from fastapi import APIRouter,Depends, HTTPException
+from fastapi import APIRouter,Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config.db import get_db
-from app.models.user import User
-from app.core.security import verify_google_token, create_access_token
+from server.app.models.Table import User,Refresh_Token
+from app.core.security import verify_google_token, create_access_token, create_refresh_token, hash_token
 
 router = APIRouter(
     prefix='/auth',
@@ -17,7 +17,7 @@ def auth():
     return "me"
 
 @router.post('/google',summary="Logging in by google")
-async def google_login(data:dict,db:AsyncSession = Depends(get_db)):
+async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get_db)):
     id_token = data.get("id_token")
     if not id_token:
         raise HTTPException(status_code=400,detail="ID Token missing")
@@ -47,11 +47,36 @@ async def google_login(data:dict,db:AsyncSession = Depends(get_db)):
             db.add(user)
             await db.commit()
             await db.refresh(user)
-        except Exception:
+        except Exception as e:
+            print(f"Error occured while inserting: {e} ")
             await db.rollback()
             raise
     access_token  = create_access_token({"user_id":str(user.id)})
-    response = {
+    refresh_token  = create_refresh_token({"user_id":str(user.id)})
+    hashed_refresh_token = hash_token(refresh_token)
+    if refresh_token:
+        token = Refresh_Token(
+            user_id = user.id,
+            jti = hashed_refresh_token
+        )
+        try:
+            db.add(token)
+            await db.commit()
+            await db.refresh(token)
+        except Exception as e:
+            print(f"Error occured while inserting: {e} ")
+            await db.rollback()
+            raise
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/auth/refresh"
+        )
+    return {
         "access_token":access_token,
         "token_type":"bearer",
         "user":{
@@ -61,5 +86,9 @@ async def google_login(data:dict,db:AsyncSession = Depends(get_db)):
         }
     }
 
+@router.post('/refresh',summary="Getting new access token")
+async def refreshing_token(request:Request,response:Response,db:AsyncSession=Depends(get_db)):
+    refresh_token = request.cookies.get("refresh_token")
 
-    return response
+    # in progress
+    return refresh_token
