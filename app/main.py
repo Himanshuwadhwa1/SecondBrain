@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from os import environ
 
-from app.routers import auth
+import os
+from app.routers.auth import router as auth
 from app.config.db import lifespan
 
-if environ.get('DEBUG'):
+if os.getenv("DEBUG", "false").lower() == "true":
     import debugpy
-    debugpy.listen(5678)
-    debugpy.wait_for_client()
+    if not debugpy.is_client_connected():
+        debugpy.listen(("0.0.0.0",5678))
+        print("wait for debugger...")
 
 
 
@@ -24,4 +25,4 @@ app.add_middleware(
     allow_headers = ["*"],
     )
 
-app.include_router(auth.router)
+app.include_router(auth)

@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config.db import get_db
-from server.app.models.Table import User,Refresh_Token
-from app.core.security import verify_google_token, create_access_token, create_refresh_token, hash_token
+from app.models.Table import User,Refresh_Token
+from app.core.security import verify_google_token, create_access_token, create_refresh_token, hash_token,verify_token
 
 router = APIRouter(
     prefix='/auth',
@@ -23,7 +23,7 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
         raise HTTPException(status_code=400,detail="ID Token missing")
     payload = verify_google_token(id_token)
     if not payload:
-        raise HTTPException(status_code=401,detail="Invalide id token")
+        raise HTTPException(status_code=401,detail="Invalid id token")
     if payload["iss"] not in ["accounts.google.com", "https://accounts.google.com"]: #security check for issuer
         raise HTTPException(status_code=401, detail="Invalid issuer")
     if not payload.get("email_verified"):
@@ -52,12 +52,13 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
             await db.rollback()
             raise
     access_token  = create_access_token({"user_id":str(user.id)})
-    refresh_token  = create_refresh_token({"user_id":str(user.id)})
+    refresh_token,expires_at  = create_refresh_token({"user_id":str(user.id)})
     hashed_refresh_token = hash_token(refresh_token)
     if refresh_token:
         token = Refresh_Token(
             user_id = user.id,
-            jti = hashed_refresh_token
+            jti = hashed_refresh_token,
+            expires_at=expires_at
         )
         try:
             db.add(token)
@@ -89,6 +90,9 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
 @router.post('/refresh',summary="Getting new access token")
 async def refreshing_token(request:Request,response:Response,db:AsyncSession=Depends(get_db)):
     refresh_token = request.cookies.get("refresh_token")
+    payload = verify_token(refresh_token)
+    print(payload)
+    
 
     # in progress
     return refresh_token
