@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select,delete
+from datetime import datetime,timezone
 
 from app.config.db import get_db
 from app.models.Table import User,Refresh_Token
@@ -60,7 +61,9 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
             jti = hashed_refresh_token,
             expires_at=expires_at
         )
+        delete_old_token = delete(Refresh_Token).where(Refresh_Token.user_id==user.id)
         try:
+            await db.execute(delete_old_token)
             db.add(token)
             await db.commit()
             await db.refresh(token)
@@ -91,8 +94,24 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
 async def refreshing_token(request:Request,response:Response,db:AsyncSession=Depends(get_db)):
     refresh_token = request.cookies.get("refresh_token")
     payload = verify_token(refresh_token)
-    print(payload)
+
+    if not payload:
+        raise HTTPException(status_code=401,detail="Invalid Token")
+    hashed_refresh_token = hash_token(refresh_token)
+    stmt = select(Refresh_Token).where(Refresh_Token.jti == hashed_refresh_token)
+    result = await db.execute(stmt)
+    db_token = result.scalar_one_or_none()
+
+    if not db_token:
+        raise HTTPException(status_code=401,detail="No token found, login again")
     
+    if db_token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401,detail="Token expired, Login Again")
+    user_id = db_token.user_id
+    access_token  = create_access_token({"user_id":str(user_id)})
 
     # in progress
-    return refresh_token
+    return {
+        "access_token":access_token,
+        "token_type":"bearer",
+    }

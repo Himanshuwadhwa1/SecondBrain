@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 import hashlib
-from jose import jwt,JWTError
+from jose import jwt,JWTError,ExpiredSignatureError
 import requests
 from app.config.env import JWT_EXPIRE_DAYS,JWT_SECRET_KEY, JWT_ALGORITHM,JWT_EXPIRE_MINUTES,GOOGLE_CLIENT_ID
 
@@ -32,12 +32,20 @@ def create_refresh_token(data:dict):
 
 
 def verify_token(token:str):
-    payload = jwt.decode(
-        token,
-        algorithms=[JWT_ALGORITHM],
-        key=JWT_SECRET_KEY
-    )
-    return payload
+    try:
+        payload = jwt.decode(
+            token,
+            algorithms=[JWT_ALGORITHM],
+            key=JWT_SECRET_KEY
+        )
+        if payload.get("type")!="refresh":
+            raise HTTPException(status_code=401,detail="Invalid token type")
+        return payload
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401,detail='Expired Refresh token')
+    except JWTError:
+        raise HTTPException(status_code=401,detail="Invalid Refresh token")
+    
 
 def hash_token(token:str)->str:
     return hashlib.sha256(token.encode()).hexdigest()
