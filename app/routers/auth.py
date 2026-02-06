@@ -14,8 +14,11 @@ router = APIRouter(
 )
 
 @router.get("/me",summary="Authenticating me")
-def auth():
-    return "me"
+def auth(token:str):
+    payload = verify_token(token=token,type="access")
+    if payload:
+        return Response(content="Valid Client",status_code=200)
+    return Response(content="Invalid Token",status_code=401)
 
 @router.post('/google',summary="Logging in by google")
 async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get_db)):
@@ -86,14 +89,15 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
         "user":{
             "id": str(user.id),
             "email": user.email,
-            "name": user.name
+            "name": user.name,
+            "image":user.avatar_url
         }
     }
 
 @router.post('/refresh',summary="Getting new access token")
 async def refreshing_token(request:Request,response:Response,db:AsyncSession=Depends(get_db)):
     refresh_token = request.cookies.get("refresh_token")
-    payload = verify_token(refresh_token)
+    payload = verify_token(refresh_token,"refresh")
 
     if not payload:
         raise HTTPException(status_code=401,detail="Invalid Token")

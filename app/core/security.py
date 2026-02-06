@@ -31,14 +31,14 @@ def create_refresh_token(data:dict):
     return token,expire
 
 
-def verify_token(token:str):
+def verify_token(token:str,type:str):
     try:
         payload = jwt.decode(
             token,
             algorithms=[JWT_ALGORITHM],
             key=JWT_SECRET_KEY
         )
-        if payload.get("type")!="refresh":
+        if payload.get("type")!=type:
             raise HTTPException(status_code=401,detail="Invalid token type")
         return payload
     except ExpiredSignatureError:
