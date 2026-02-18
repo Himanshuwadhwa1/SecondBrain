@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends, HTTPException, Response, Request
+from fastapi import APIRouter,Depends, HTTPException, Response, Request, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select,delete
 from datetime import datetime,timezone
@@ -14,7 +14,10 @@ router = APIRouter(
 )
 
 @router.get("/me",summary="Authenticating me")
-def auth(token:str):
+def auth(authorization:str = Header(None)):
+    if not authorization:
+        return Response(content="Missing Token",status_code=401)
+    token = authorization.replace("Bearer ","")
     payload = verify_token(token=token,type="access")
     if payload:
         return Response(content="Valid Client",status_code=200)
