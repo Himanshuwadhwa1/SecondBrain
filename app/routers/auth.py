@@ -82,9 +82,10 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="strict",
-        path="/auth/refresh"
+        secure=False, #for dev otherwise true
+        samesite="lax", # for dev otherwise none
+        path="/auth/refresh",
+        max_age=60 * 60 * 24 * 5  # 5 days
         )
     return {
         "access_token":access_token,
@@ -100,6 +101,8 @@ async def google_login(data:dict,response:Response,db:AsyncSession = Depends(get
 @router.post('/refresh',summary="Getting new access token")
 async def refreshing_token(request:Request,response:Response,db:AsyncSession=Depends(get_db)):
     refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=400,detail="Token Missing")
     payload = verify_token(refresh_token,"refresh")
 
     if not payload:

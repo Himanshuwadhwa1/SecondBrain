@@ -10,7 +10,7 @@ GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
 def create_access_token(data: dict):
     to_encode = data.copy()
     to_encode["type"] = "access"
-    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=float(JWT_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(
         to_encode,
@@ -42,9 +42,9 @@ def verify_token(token:str,type:str):
             raise HTTPException(status_code=401,detail="Invalid token type")
         return payload
     except ExpiredSignatureError:
-        raise HTTPException(status_code=401,detail='Expired Refresh token')
+        raise HTTPException(status_code=401,detail='Expired token')
     except JWTError:
-        raise HTTPException(status_code=401,detail="Invalid Refresh token")
+        raise HTTPException(status_code=401,detail="Invalid token")
     
 
 def hash_token(token:str)->str:

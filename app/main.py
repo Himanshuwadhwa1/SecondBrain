@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 import os
 from app.routers.auth import router as auth
 from app.config.db import lifespan
+from app.config.env import CHROME_EXTENSION_URL
 
 if os.getenv("DEBUG", "false").lower() == "true":
     import debugpy
@@ -20,7 +21,10 @@ app.title = "The maag server"
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = ["*"],
+    allow_origins = [
+        "http://localhost:5173",
+        CHROME_EXTENSION_URL
+        ],
     allow_credentials = True,
     allow_methods = ["*"],
     allow_headers = ["*"],
